@@ -454,7 +454,7 @@ server:
 
     ## Prometheus server data Persistent Volume size
     ##
-    size: 8Gi
+    size: 1Gi
 
     ## Prometheus server data Persistent Volume Storage Class
     ## If defined, storageClassName: <storageClass>
@@ -1210,7 +1210,7 @@ alertmanager:
   enabled: true
 
   persistence:
-    size: 2Gi
+    size: 1Gi
 
   podSecurityContext:
     runAsUser: 65534
