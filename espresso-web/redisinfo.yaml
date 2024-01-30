@@ -1,0 +1,101 @@
+Name:           redis-cache-redis-ha-server-0
+Namespace:      s6kwame
+Priority:       0
+Node:           <none>
+Labels:         app=redis-ha
+                controller-revision-hash=redis-cache-redis-ha-server-d47dc4894
+                redis-cache-redis-ha=replica
+                release=redis-cache
+                statefulset.kubernetes.io/pod-name=redis-cache-redis-ha-server-0
+Annotations:    checksum/init-config: 4fb91aabed503a37625087ad0b96bddb9f3085bd801276b6143b94b310f433ab
+Status:         Pending
+IP:             
+IPs:            <none>
+Controlled By:  StatefulSet/redis-cache-redis-ha-server
+Init Containers:
+  config-init:
+    Image:      redis:7.0.9-alpine3.17
+    Port:       <none>
+    Host Port:  <none>
+    Command:
+      sh
+    Args:
+      /readonly-config/init.sh
+    Environment:
+      SENTINEL_ID_0:  d1c921fee201d1c934d68ffc443440a2ed89949c
+      SENTINEL_ID_1:  ad28f9a2d19ab5561b0b18590d8ab30c6404e552
+      SENTINEL_ID_2:  ae1402e50018c68b43757af1bd747c0b75ef7eeb
+    Mounts:
+      /data from data (rw)
+      /readonly-config from config (ro)
+Containers:
+  redis:
+    Image:      redis:7.0.9-alpine3.17
+    Port:       6379/TCP
+    Host Port:  0/TCP
+    Command:
+      redis-server
+    Args:
+      /data/conf/redis.conf
+    Liveness:     exec [sh -c /health/redis_liveness.sh] delay=30s timeout=15s period=15s #success=1 #failure=5
+    Readiness:    exec [sh -c /health/redis_readiness.sh] delay=30s timeout=15s period=15s #success=1 #failure=5
+    Environment:  <none>
+    Mounts:
+      /data from data (rw)
+      /health from health (rw)
+      /readonly-config from config (ro)
+  sentinel:
+    Image:      redis:7.0.9-alpine3.17
+    Port:       26379/TCP
+    Host Port:  0/TCP
+    Command:
+      redis-sentinel
+    Args:
+      /data/conf/sentinel.conf
+    Liveness:     exec [sh -c /health/sentinel_liveness.sh] delay=30s timeout=15s period=15s #success=1 #failure=5
+    Readiness:    exec [sh -c /health/sentinel_liveness.sh] delay=30s timeout=15s period=15s #success=3 #failure=5
+    Environment:  <none>
+    Mounts:
+      /data from data (rw)
+      /health from health (rw)
+  split-brain-fix:
+    Image:      redis:7.0.9-alpine3.17
+    Port:       <none>
+    Host Port:  <none>
+    Command:
+      sh
+    Args:
+      /readonly-config/fix-split-brain.sh
+    Environment:
+      SENTINEL_ID_0:  d1c921fee201d1c934d68ffc443440a2ed89949c
+      SENTINEL_ID_1:  ad28f9a2d19ab5561b0b18590d8ab30c6404e552
+      SENTINEL_ID_2:  ae1402e50018c68b43757af1bd747c0b75ef7eeb
+    Mounts:
+      /data from data (rw)
+      /readonly-config from config (ro)
+Conditions:
+  Type           Status
+  PodScheduled   False 
+Volumes:
+  data:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  data-redis-cache-redis-ha-server-0
+    ReadOnly:   false
+  config:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      redis-cache-redis-ha-configmap
+    Optional:  false
+  health:
+    Type:        ConfigMap (a volume populated by a ConfigMap)
+    Name:        redis-cache-redis-ha-health-configmap
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type     Reason             Age        From                Message
+  ----     ------             ----       ----                -------
+  Warning  FailedScheduling   <unknown>                      0/2 nodes are available: pod has unbound immediate PersistentVolumeClaims. preemption: 0/2 nodes are available: 2 No preemption victims found for incoming pod..
+  Warning  FailedScheduling   <unknown>                      0/2 nodes are available: 2 node(s) exceed max volume count. preemption: 0/2 nodes are available: 2 No preemption victims found for incoming pod..
+  Normal   NotTriggerScaleUp  87s        cluster-autoscaler  pod didn't trigger scale-up:

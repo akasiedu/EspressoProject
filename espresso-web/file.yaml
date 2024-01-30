@@ -1,0 +1,167 @@
+NAME: espresso-web
+LAST DEPLOYED: Mon Jan 22 18:38:10 2024
+NAMESPACE: s6kwame
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
+---
+# Source: espresso-web/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-web
+  labels:
+    helm.sh/chart: espresso-web-0.1.0
+    version: v1
+    app.kubernetes.io/name: espresso-web
+    app.kubernetes.io/instance: espresso-web
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: espresso-web/templates/regcred.yaml
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsidXNlcm5hbWUiOiJkZXZvcHNlYXN5bGVhcm5pbmciLCJwYXNzd29yZCI6ImRja3JfcGF0X2VfbjIxNF9BNl9mWDFwOHE5bk5GbXNJUWt2QSIsImVtYWlsIjoiaW5mb0BkZXZvcHNlYXN5bGVhcm5pbmcuY29tIiwiYXV0aCI6IlpHVjJiM0J6WldGemVXeGxZWEp1YVc1bk9tUmphM0pmY0dGMFgyVmZiakl4TkY5Qk5sOW1XREZ3T0hFNWJrNUdiWE5KVVd0MlFRPT0ifX19
+kind: Secret
+metadata:
+  name: regcred
+type: kubernetes.io/dockerconfigjson
+---
+# Source: espresso-web/templates/webconfig.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: espresso-web
+data:
+  ProductCatalogUrl: "http://espresso-shop-product-catalog-svc:8091"
+  ReviewsUrl: "http://espresso-shop-reviews-svc:8092"
+  redisUrl: "http://redis-ha:6379"
+---
+# Source: espresso-web/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-web
+  labels:
+    helm.sh/chart: espresso-web-0.1.0
+    version: v1
+    app.kubernetes.io/name: espresso-web
+    app.kubernetes.io/instance: espresso-web
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    version: v1
+    app.kubernetes.io/name: espresso-web
+    app.kubernetes.io/instance: espresso-web
+---
+# Source: espresso-web/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-web
+  labels:
+    helm.sh/chart: espresso-web-0.1.0
+    version: v1
+    app.kubernetes.io/name: espresso-web
+    app.kubernetes.io/instance: espresso-web
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      version: v1
+      app.kubernetes.io/name: espresso-web
+      app.kubernetes.io/instance: espresso-web
+  template:
+    metadata:
+      labels:
+        version: v1
+        app.kubernetes.io/name: espresso-web
+        app.kubernetes.io/instance: espresso-web
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      serviceAccountName: espresso-web
+      securityContext:
+        {}
+      containers:
+        - name: espresso-web
+          securityContext:
+            {}
+          image: "devopseasylearning/s6-project-espresso-web:latest"
+          imagePullPolicy: Always
+          envFrom:
+          - secretRef:
+              name: espresso-web
+          env:
+          - name: ProductCatalogUrl
+            valueFrom:
+              configMapKeyRef:
+                name: webconfig
+                key: ProductCatalogUrl
+          - name: ReviewsUrl
+            valueFrom:
+              configMapKeyRef:
+                name: webconfig
+                key: ReviewsUrl
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-web/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-web
+  labels:
+    helm.sh/chart: espresso-web-0.1.0
+    version: v1
+    app.kubernetes.io/name: espresso-web
+    app.kubernetes.io/instance: espresso-web
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-web
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: 
+          type: Utilization
+          averageUtilization: 80
+
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace s6kwame -o jsonpath="{.spec.ports[0].nodePort}" services espresso-web)
+  export NODE_IP=$(kubectl get nodes --namespace s6kwame -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT

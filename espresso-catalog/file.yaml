@@ -1,0 +1,113 @@
+---
+# Source: espresso-catalog/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: RELEASE-NAME-espresso-catalog
+  labels:
+    helm.sh/chart: espresso-catalog-0.1.0
+    app.kubernetes.io/name: espresso-catalog
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: espresso-catalog/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-product-catalog-svc
+  labels:
+    helm.sh/chart: espresso-catalog-0.1.0
+    app.kubernetes.io/name: espresso-catalog
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8091
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: espresso-catalog
+    app.kubernetes.io/instance: RELEASE-NAME
+---
+# Source: espresso-catalog/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: RELEASE-NAME-espresso-catalog
+  labels:
+    helm.sh/chart: espresso-catalog-0.1.0
+    app.kubernetes.io/name: espresso-catalog
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: espresso-catalog
+      app.kubernetes.io/instance: RELEASE-NAME
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: espresso-catalog
+        app.kubernetes.io/instance: RELEASE-NAME
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      serviceAccountName: RELEASE-NAME-espresso-catalog
+      securityContext:
+        {}
+      containers:
+        - name: espresso-catalog
+          securityContext:
+            {}
+          image: "devopseasylearning/s6-expresso-catalog:v1.0.0"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-catalog/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: RELEASE-NAME-espresso-catalog
+  labels:
+    helm.sh/chart: espresso-catalog-0.1.0
+    app.kubernetes.io/name: espresso-catalog
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: RELEASE-NAME-espresso-catalog
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
